@@ -12,6 +12,7 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.SweepGradient;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.Property;
 import android.view.View;
 import android.view.animation.LinearInterpolator;
@@ -39,10 +40,10 @@ public class ShootRefreshView extends View implements IRefreshStatus {
             (float) SHOOT_LINE_ROTATE_DURATION / (float) TOTAL_DURATION;
     private static final float SHOOT_LINE_STRETCH_END_OFFSET = 1.0f;
 
-    private static final float SHOOT_LINE_ROTATE_END_RADIANS = (float) (Math.PI / 6.0);
-    private static final float SHOOT_LINE_ROTATE_START_RADIANS = (float) (Math.PI / 2.5);
+    private static final float SHOOT_LINE_ROTATE_END_RADIANS = (float) (Math.PI / 6.0);//快线旋转结束弧度
+    private static final float SHOOT_LINE_ROTATE_START_RADIANS = (float) (Math.PI / 2.0);//开线旋转开始弧度
     private static final float SHOOT_LINE_ROTATE_START_DEGREE =
-            (float) Math.toDegrees(SHOOT_LINE_ROTATE_END_RADIANS);
+            (float) Math.toDegrees(SHOOT_LINE_ROTATE_END_RADIANS);//快线旋转开始角度
     private static final float INTERVAL_RADIANS = (float) (Math.PI / 3.0);
     private static final float SQRT_3 = (float) Math.sqrt(3.0);
 
@@ -70,6 +71,8 @@ public class ShootRefreshView extends View implements IRefreshStatus {
     private ValueAnimator mShootLineRotateAnimator;
     private ValueAnimator mShootLineStretchAnimator;
     private ValueAnimator mOutRingRotateAnimator;
+
+    private ValueAnimator mPlayAnimator;
 
     public static final Property<ShootRefreshView, Float> SHOOT_LINE_ROTATE_RADIANS =
             new Property<ShootRefreshView, Float>(Float.class, null) {
@@ -140,6 +143,21 @@ public class ShootRefreshView extends View implements IRefreshStatus {
     }
 
     private void initAnimator() {
+
+        mPlayAnimator = ValueAnimator.ofFloat(0, 0.8f);
+        mPlayAnimator.setDuration(500);
+        mPlayAnimator.setInterpolator(new LinearInterpolator());
+        mPlayAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                float pullProgress = (float) animation.getAnimatedValue();
+                Log.i("mPlayAnimator", "" + pullProgress);
+                mShootLineRotateAnimator.setCurrentPlayTime(
+                        (long) ((pullProgress)
+                                / (SHOOT_LINE_ROTATE_END_OFFSET)
+                                * SHOOT_LINE_ROTATE_DURATION));
+            }
+        });
         //Note: the following uses the 'kwai Line' represent the six lines of the shutter
 
         //Step1: Rotate the 'kwai Line', but the shutter does not open
@@ -158,8 +176,7 @@ public class ShootRefreshView extends View implements IRefreshStatus {
 
         //Step 2: Rotate the 'Kwai Line' and open the shutter
         PropertyValuesHolder shootLineIntersectHolder = PropertyValuesHolder
-                .ofFloat(SHOOT_LINE_ROTATE_RADIANS, SHOOT_LINE_ROTATE_START_RADIANS,
-                        SHOOT_LINE_ROTATE_END_RADIANS);
+                .ofFloat(SHOOT_LINE_ROTATE_RADIANS, SHOOT_LINE_ROTATE_END_RADIANS, SHOOT_LINE_ROTATE_START_RADIANS);
         PropertyValuesHolder shootLineTotalRotateAnimatorHolder = PropertyValuesHolder
                 .ofFloat(SHOOT_LINE_TOTAL_ROTATE_DEGREE, -(SHOOT_LINE_ROTATE_START_DEGREE / 2.0f) - 120.0f,
                         -(SHOOT_LINE_ROTATE_START_DEGREE / 2.0f));
@@ -219,6 +236,9 @@ public class ShootRefreshView extends View implements IRefreshStatus {
         canvas.restore();
     }
 
+    float startX;
+    float startY;
+
     private void drawShootLine(Canvas canvas) {
         if (mShootLineRotateRadians <= 0.0f || mOutRingRotateAnimator.isRunning()) {
             return;
@@ -255,6 +275,9 @@ public class ShootRefreshView extends View implements IRefreshStatus {
                 float stopY = (float) ((Math.pow(tanRotateAngle, 2.0) - 1.0) * mRadius
                         / (Math.pow(tanRotateAngle, 2.0) + 1.0));
 
+                startX = stopX;
+                startY = stopY;
+
                 canvas.drawLine(0, -mRadius, stopX, stopY, mPaint);
             }
 
@@ -286,7 +309,7 @@ public class ShootRefreshView extends View implements IRefreshStatus {
     public void reset() {
         mOutRingRotateAnimator.cancel();
 
-        mShootLineRotateRadians = SHOOT_LINE_ROTATE_START_RADIANS;
+        mShootLineRotateRadians = SHOOT_LINE_ROTATE_END_RADIANS;
         mShootLineTotalRotateAngle = -(SHOOT_LINE_ROTATE_START_DEGREE / 2.0f) - 240.0f;
         mOutRingRotateAngle = 0.0f;
         invalidate();
@@ -321,14 +344,12 @@ public class ShootRefreshView extends View implements IRefreshStatus {
     @Override
     public void pullProgress(float pullDistance, float pullProgress) {
         pullProgress = Math.min(1.0f, Math.max(0.0f, pullProgress));
+        Log.i("pullProgress", "-->" + pullProgress);
 
-        if (pullProgress < PRE_SHOOT_LINE_TOTAL_ROTATE_END_OFFSET) {
-            mPreShootLineTotalRotateAnimator.setCurrentPlayTime((long) (pullProgress
-                    / PRE_SHOOT_LINE_TOTAL_ROTATE_END_OFFSET * PRE_SHOOT_LINE_TOTAL_ROTATE_DURATION));
-        } else if (pullProgress < SHOOT_LINE_ROTATE_END_OFFSET) {
+        if (pullProgress < SHOOT_LINE_ROTATE_END_OFFSET) {
             mShootLineRotateAnimator.setCurrentPlayTime(
-                    (long) ((pullProgress - PRE_SHOOT_LINE_TOTAL_ROTATE_END_OFFSET)
-                            / (SHOOT_LINE_ROTATE_END_OFFSET - PRE_SHOOT_LINE_TOTAL_ROTATE_END_OFFSET)
+                    (long) ((pullProgress)
+                            / (SHOOT_LINE_ROTATE_END_OFFSET)
                             * SHOOT_LINE_ROTATE_DURATION));
         } else {
             if (pullProgress == 1.0f) {
@@ -340,5 +361,9 @@ public class ShootRefreshView extends View implements IRefreshStatus {
                                 * SHOOT_LINE_STRETCH_DURATION));
             }
         }
+    }
+
+    public void startPlay() {
+        mPlayAnimator.start();
     }
 }

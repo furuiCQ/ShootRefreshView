@@ -1,18 +1,18 @@
 package dinuscxj.com.demo;
 
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.SeekBar;
-import android.widget.TextView;
 
 import com.dinuscxj.shootrefreshview.ShootRefreshView;
+import com.dinuscxj.shootrefreshview.ShootView;
 
 public class MainActivity extends AppCompatActivity {
 
     private ShootRefreshView mShootRefreshView;
-
+    private ShootView shootView;
     private SeekBar mPullProgressBar;
 
     private Button mResetView;
@@ -24,9 +24,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mShootRefreshView = (ShootRefreshView) findViewById(R.id.shoot_refresh_view);
+        shootView = (ShootView) findViewById(R.id.shoot_view);
         mPullProgressBar = (SeekBar) findViewById(R.id.pull_progress_bar);
         mLoadingView = (Button) findViewById(R.id.loading_view);
         mResetView = (Button) findViewById(R.id.reset_view);
+
 
         mPullProgressBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
 
@@ -44,19 +46,19 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        mLoadingView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mPullProgressBar.setProgress(0);
-                mShootRefreshView.refreshing();
-            }
-        });
+//        mLoadingView.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                mPullProgressBar.setProgress(0);
+//                mShootRefreshView.refreshing();
+//            }
+//        });
 
         mResetView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mPullProgressBar.setProgress(0);
-                mShootRefreshView.reset();
+                shootView.startPlay();
+                mShootRefreshView.startPlay();
             }
         });
     }
